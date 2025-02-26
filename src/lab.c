@@ -2,17 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <limits.h>
+// #include <unistd.h>
+// #include <limits.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <getopt.h>
 #include <pwd.h>
-#include <sys/types.h>
+// #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <errno.h>
-#include <termios.h>
+// #include <termios.h>
 
 char *get_prompt(const char *env) {
     char *prompt = getenv(env);
@@ -20,6 +20,12 @@ char *get_prompt(const char *env) {
         prompt = "shell>";
     }
     return strdup(prompt);
+
+    // char *prompt = getenv(env);
+    // if (!prompt) {
+    //     return strdup("shell>");
+    // } 
+    // return strdup(prompt);
 }
 
 char **cmd_parse(const char *line) {
@@ -28,7 +34,7 @@ char **cmd_parse(const char *line) {
     long arg_max = sysconf(_SC_ARG_MAX);
     if (arg_max <= 0) arg_max = 4096;
 
-    char **args = malloc((arg_max / 2) * sizeof(char *));
+    char **args = malloc((arg_max / 4) * sizeof(char *));
     if (!args) {
         perror("malloc");
         exit(EXIT_FAILURE);
@@ -180,23 +186,42 @@ void sh_init(struct shell *sh) {
     sh->shell_terminal = STDIN_FILENO;
     sh->shell_is_interactive = isatty(sh->shell_terminal);
 
-    if (sh->shell_is_interactive) {
-        while (tcgetpgrp(sh->shell_terminal) != (sh->shell_pgid = getpgrp())) {
-            kill(-sh->shell_pgid, SIGTTIN);
-        }
+    if (!sh->shell_is_interactive) {
+        while (tcgetpgrp(sh->shell_terminal) != (sh->shell_pgid = getpgrp())) kill (- sh->shell_pgid, SIGTTIN);
+
+        // ignore signals
+        signal(SIGINT, SIG_IGN);
+        signal(SIGQUIT, SIG_IGN);
+        signal(SIGTSTP, SIG_IGN);
+        signal(SIGTTIN, SIG_IGN);
+        signal(SIGTTOU, SIG_IGN);
+        signal(SIGCHLD, SIG_IGN);
 
         sh->shell_pgid = getpid();
         if (setpgid(sh->shell_pgid, sh->shell_pgid) < 0) {
-            perror("setpgid");
+            perror("sh_init: setpgid failed");
+            sh_destroy(sh);
             exit(EXIT_FAILURE);
         }
 
         tcsetpgrp(sh->shell_terminal, sh->shell_pgid);
+        if (tcsetpgrp(sh->shell_terminal, sh->shell_pgid) < 0) {
+            perror("sh_init: tcsetpgrp failed");
+            sh_destroy(sh);
+            exit(EXIT_FAILURE);
+        }
+
         tcgetattr(sh->shell_terminal, &sh->shell_tmodes);
+        if (tcgetattr(sh->shell_terminal, &sh->shell_tmodes) < 0) {
+            perror("sh_init: tcgetattr failed");
+            sh_destroy(sh);
+            exit(EXIT_FAILURE);
+        }
     }
 
     sh->prompt = get_prompt("SHELL_PROMPT");
 }
+
 
 void sh_destroy(struct shell *sh) {
     if (sh != NULL) {
@@ -206,3 +231,7 @@ void sh_destroy(struct shell *sh) {
         free(sh);
     }
 }
+
+// // void sh_destroy(struct shell *sh) {
+// //     free(sh->prompt);
+// // }
