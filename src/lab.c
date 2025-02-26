@@ -2,17 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// #include <unistd.h>
-// #include <limits.h>
+#include <unistd.h>
+#include <limits.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <getopt.h>
 #include <pwd.h>
-// #include <sys/types.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <errno.h>
-// #include <termios.h>
+#include <termios.h>
 
 char *get_prompt(const char *env) {
     char *prompt = getenv(env);
