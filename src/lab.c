@@ -119,18 +119,21 @@ int change_dir(char **dir) {
 bool do_builtin(struct shell *sh, char **argv) {
     if (!argv || !argv[0]) {
         cmd_free(argv);
-        return true;
+        sh_destroy(sh);
+        exit(EXIT_FAILURE);
     }
 
     if (strcmp(argv[0], "exit") == 0) {
         cmd_free(argv);
         sh_destroy(sh);
-        exit(EXIT_FAILURE);
+        return true;
     }
 
     if (strcmp(argv[0], "cd") == 0) {
         if (change_dir(argv) != 0) {
-            return false;
+            cmd_free(argv);
+            sh_destroy(sh);
+            exit(EXIT_FAILURE);
         }
 
         return true;
@@ -138,12 +141,10 @@ bool do_builtin(struct shell *sh, char **argv) {
 
     if (strcmp(argv[0], "history") == 0) {
         HIST_ENTRY **history = history_list();
-        if(history == NULL) {
-            return false;
-        }
-        //print history
-        for(int i = 0; history[i] != NULL; i++) {
-            printf("%d %s\n", i, history[i]->line);
+        if(history != NULL) {
+            for (int i = 0; history[i] != NULL; i++) {
+                printf("%d %s\n", i, history[i]->line);
+            }
         }
 
         return true;
@@ -152,21 +153,24 @@ bool do_builtin(struct shell *sh, char **argv) {
     pid_t pid = fork();
     if (pid == -1) {
         perror("do_builtin: fork failure");
-        return false; 
+        cmd_free(argv);
+        sh_destroy(sh);
+        exit(EXIT_FAILURE);
     } else if (pid == 0) {
         execvp(argv[0], argv); 
         perror("do_builtin: execvp failure"); 
-        return false;
     } else {
         int status;
         waitpid(pid, &status, 0); 
         if (status < 0) {
             perror("do_builtin: waitpid failure");
-            return false;
+            cmd_free(argv);
+            sh_destroy(sh);
+            exit(EXIT_FAILURE);
         }
     }
 
-    return true;
+    return false;
 }
 
 void sh_init(struct shell *sh) {
