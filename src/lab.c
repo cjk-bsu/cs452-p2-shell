@@ -32,7 +32,7 @@ char *get_prompt(const char *env) {
 
 char **cmd_parse(const char *line) {
     const long arg_max = sysconf(_SC_ARG_MAX);
-    char *line_copy = strdup(line);
+    char *line_copy = strdup(line); // Duplicate input line for modification
     char *save = NULL;
 
     if (!line_copy) {
@@ -40,7 +40,7 @@ char **cmd_parse(const char *line) {
         exit(EXIT_FAILURE);
     }
 
-    char **args = (char **)calloc(arg_max, sizeof(char *));
+    char **args = (char **)calloc(arg_max, sizeof(char *)); // Allocate memory for argument list
 
     if (!args) {
         perror("cmd_parse: calloc failed");
@@ -48,7 +48,7 @@ char **cmd_parse(const char *line) {
         exit(EXIT_FAILURE);
     }
 
-    char *token = strtok_r(line_copy, " ", &save);
+    char *token = strtok_r(line_copy, " ", &save); // Tokenize the input line
 
     if (!token) {
         perror("cmd_parse: strtok failed");
@@ -117,19 +117,19 @@ int change_dir(char **dir) {
 }
 
 bool do_builtin(struct shell *sh, char **argv) {
-    if (!argv || !argv[0]) {
+    if (!argv || !argv[0]) { // If no command is given, exit
         cmd_free(argv);
         sh_destroy(sh);
         exit(EXIT_FAILURE);
     }
 
-    if (strcmp(argv[0], "exit") == 0) {
+    if (strcmp(argv[0], "exit") == 0) { // Handle 'exit' command
         cmd_free(argv);
         sh_destroy(sh);
         return true;
     }
 
-    if (strcmp(argv[0], "cd") == 0) {
+    if (strcmp(argv[0], "cd") == 0) { // Handle 'cd' command
         if (change_dir(argv) != 0) {
             cmd_free(argv);
             sh_destroy(sh);
@@ -139,7 +139,7 @@ bool do_builtin(struct shell *sh, char **argv) {
         return true;
     }
 
-    if (strcmp(argv[0], "history") == 0) {
+    if (strcmp(argv[0], "history") == 0) { // Handle 'history' command
         HIST_ENTRY **history = history_list();
         if(history != NULL) {
             for (int i = 0; history[i] != NULL; i++) {
@@ -150,18 +150,18 @@ bool do_builtin(struct shell *sh, char **argv) {
         return true;
     }
 
-    pid_t pid = fork();
+    pid_t pid = fork(); // Create a new process
     if (pid == -1) {
         perror("do_builtin: fork failure");
         cmd_free(argv);
         sh_destroy(sh);
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
-        execvp(argv[0], argv); 
+        execvp(argv[0], argv); // Execute command in child process
         perror("do_builtin: execvp failure"); 
     } else {
         int status;
-        waitpid(pid, &status, 0); 
+        waitpid(pid, &status, 0); // Parent process waits for child to finish
         if (status < 0) {
             perror("do_builtin: waitpid failure");
             cmd_free(argv);
@@ -177,6 +177,7 @@ void sh_init(struct shell *sh) {
 
     using_history();
 
+    // Ignore common terminal signals to prevent unintended interruptions
     signal(SIGINT, SIG_IGN);
     signal(SIGQUIT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
@@ -191,19 +192,19 @@ void sh_init(struct shell *sh) {
 
     sh->shell_pgid = getpgrp();
 
-    if (!sh->shell_is_interactive) {
-        while (tcgetpgrp(sh->shell_terminal) != (sh->shell_pgid = getpgrp())) kill (- sh->shell_pgid, SIGTTIN);
+    if (!sh->shell_is_interactive) { // Check if shell is interactive
+        while (tcgetpgrp(sh->shell_terminal) != (sh->shell_pgid = getpgrp())) kill (- sh->shell_pgid, SIGTTIN); // Ensure the shell is in the foreground or suspend the process until it is
 
-        sh->shell_pgid = getpid();
+        sh->shell_pgid = getpid(); // Set the shell's process group ID to its own PID
         if (setpgid(sh->shell_pgid, sh->shell_pgid) < 0) {
             perror("sh_init: setpgid failure");
             sh_destroy(sh);
             exit(EXIT_FAILURE);
         }
 
-        tcsetpgrp(sh->shell_terminal, sh->shell_pgid);
+        tcsetpgrp(sh->shell_terminal, sh->shell_pgid); // Set the shell as the foreground process group
 
-        tcgetattr(sh->shell_terminal, &sh->shell_tmodes);
+        tcgetattr(sh->shell_terminal, &sh->shell_tmodes); // Save the current terminal settings
     }
 }
 
